@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>Pokémon Type Recommendation</title>
+  <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+  <link rel="stylesheet" href="./static/pokemondb-f77076084e.css">
+  <link rel="stylesheet" href="./static/type-chart-76998cbd3d.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    [v-cloak] {
+      display: none;
+    }
+    .type-icon {
+      cursor: pointer;
+    }
+    .type-fx--100 {
+      background-color: grey;
+    }
+    .el-form-item__label {
+      color: white;
+    }
+    .el-select-dropdown__item {
+      color: white;
+    }
+    .el-select-dropdown__item:hover {
+      color: black;
+      background-color: inherit;
+    }
+    .center {
+      margin: 0 auto 1rem;
+      color: white;
+      width: fit-content;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app" class="resp-scroll" v-cloak>
+    <table class="type-table">
+      <thead>
+        <tr>
+          <th class="cell-atkdef" style="color: white">防守&nbsp;→<br>攻击&nbsp;↴</th>
+          <th v-for="type, typeIdx in types"><span :class="`type-icon type-${type} type-cell type-abbr`">{{typesMap[type]}}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="typeR, row in types">
+          <th><span :class="`type-icon type-${typeR} type-cell`">{{typesMap[typeR]}}</span></th>
+          <td v-for="typeC, col in types" :class="`type-fx-cell type-fx-${parseInt(matrix.get(row, col)*100)}`">
+            {{display(matrix.get(row, col))}}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <table class="type-table">
+      <tbody style="color: white">
+        <tr>
+          <th>招式属性</th>
+          <td v-for="type in getSkillRank()[1]"><span :class="`type-icon type-${type} type-cell type-abbr`">{{typesMap[type]}}</span></td>
+        </tr>
+        <tr>
+          <th>招式伤害</th>
+          <td v-for="v in getSkillRank()[0]" style="text-align: center">{{display(v, true)}}</td>
+        </tr>
+      </tbody>
+    </table>
+    <table class="type-table">
+      <tbody style="color: white">
+        <tr>
+          <th>我方属性</th>
+          <td v-for="type in getAttrRank()[1]"><span :class="`type-icon type-${type} type-cell type-abbr`">{{typesMap[type]}}</span></td>
+        </tr>
+        <tr>
+          <th>受到伤害</th>
+          <td v-for="v in getAttrRank()[0]" style="text-align: center">{{display(v, true)}}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="center">
+      推荐使用具有
+      <span v-for="type in recommendSkill()" :class="`type-icon type-${type} type-cell type-abbr`" style="display: inline-block">{{typesMap[type]}}</span>
+      系技能的
+      <span v-for="type in recommendAttr()" :class="`type-icon type-${type} type-cell type-abbr`" style="display: inline-block">{{typesMap[type]}}</span>
+      系宝可梦应战
+    </div>
+    <el-row class="center">
+      <el-col :span="12">
+        <el-form>
+          <el-form-item v-for="val, key in form1" :label="formMap1[key]" style="width: 20rem;">
+            <el-select v-model="form1[key]" @change="handleAttrChange(key)">
+              <el-option label="-" :key="-1" :value="-1"></el-option>
+              <el-option v-for="type, typeIdx in types" :class="`type-${type}`" :label="typesMap[type]" :key="typeIdx" :value="typeIdx"></el-option>
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </el-col>
+      <el-col :span="12">
+        <el-form>
+          <el-form-item v-for="val, key in form2" :label="formMap2[key]" style="width: 20rem;">
+            <el-select v-model="form2[key]" @change="handleSkillChange(key)">
+              <el-option label="-" :key="-1" :value="-1"></el-option>
+              <el-option v-for="type, typeIdx in types" :class="`type-${type}`" :label="typesMap[type]" :key="typeIdx" :value="typeIdx"></el-option>
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </el-col>
+    </el-row>
+  </div>
+</body>
+<script src="https://unpkg.com/vue@2/dist/vue.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/nicolaspanel/numjs@0.15.1/dist/numjs.min.js"></script>
+<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script>
+  var types = [
+    "normal",
+    "fire",
+    "water",
+    "electric",
+    "grass",
+    "ice",
+    "fighting",
+    "poison",
+    "ground",
+    "flying",
+    "psychic",
+    "bug",
+    "rock",
+    "ghost",
+    "dragon",
+    "dark",
+    "steel",
+    "fairy",
+  ]
+  var typesMap = {
+    normal: "普",
+    fire: "火",
+    water: "水",
+    electric: "电",
+    grass: "草",
+    ice: "冰",
+    fighting: "斗",
+    poison: "毒",
+    ground: "地",
+    flying: "飞",
+    psychic: "超",
+    bug: "虫",
+    rock: "岩",
+    ghost: "鬼",
+    dragon: "龙",
+    dark: "恶",
+    steel: "钢",
+    fairy: "妖",
+  }
+  var formMap1 = {
+    attr1: "敌属性1",
+    attr2: "敌属性2",
+    attr3: "敌属性3",
+  }
+  var formMap2 = {
+    skillAttr1: "敌招式属性1",
+    skillAttr2: "敌招式属性2",
+    skillAttr3: "敌招式属性3",
+    skillAttr4: "敌招式属性4",
+  }
+  var matrix = nj.array([
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,.5, 0, 1, 1,.5, 1],
+    [1,.5,.5, 1, 2, 2, 1, 1, 1, 1, 1, 2,.5, 1,.5, 1, 2, 1],
+    [1, 2,.5, 1,.5, 1, 1, 1, 2, 1, 1, 1, 2, 1,.5, 1, 1, 1],
+    [1, 1, 2,.5,.5, 1, 1, 1, 0, 2, 1, 1, 1, 1,.5, 1, 1, 1],
+    [1,.5, 2, 1,.5, 1, 1,.5, 2,.5, 1,.5, 2, 1,.5, 1,.5, 1],
+    [1,.5,.5, 1, 2,.5, 1, 1, 2, 2, 1, 1, 1, 1, 2, 1,.5, 1],
+    [2, 1, 1, 1, 1, 2, 1,.5, 1,.5,.5,.5, 2, 0, 1, 2, 2,.5],
+    [1, 1, 1, 1, 2, 1, 1,.5,.5, 1, 1, 1,.5,.5, 1, 1, 0, 2],
+    [1, 2, 1, 2,.5, 1, 1, 2, 1, 0, 1,.5, 2, 1, 1, 1, 2, 1],
+    [1, 1, 1,.5, 2, 1, 2, 1, 1, 1, 1, 2,.5, 1, 1, 1,.5, 1],
+    [1, 1, 1, 1, 1, 1, 2, 2, 1, 1,.5, 1, 1, 1, 1, 0,.5, 1],
+    [1,.5, 1, 1, 2, 1,.5,.5, 1,.5, 2, 1, 1,.5, 1, 2,.5,.5],
+    [1, 2, 1, 1, 1, 2,.5, 1,.5, 2, 1, 2, 1, 1, 1, 1,.5, 1],
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1,.5, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1,.5, 0],
+    [1, 1, 1, 1, 1, 1,.5, 1, 1, 1, 2, 1, 1, 2, 1,.5, 1,.5],
+    [1,.5,.5,.5, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1,.5, 2],
+    [1,.5, 1, 1, 1, 1, 2,.5, 1, 1, 1, 1, 1, 1, 2, 2,.5, 1],
+  ])
+  var app = new Vue({
+    el: "#app",
+    data() {
+      return {
+        types: types,
+        typesMap: typesMap,
+        formMap1: formMap1,
+        formMap2: formMap2,
+        matrix: matrix,
+        form1: {
+          attr1: -1,
+          attr2: -1,
+          attr3: -1,
+        },
+        form2: {
+          skillAttr1: -1,
+          skillAttr2: -1,
+          skillAttr3: -1,
+          skillAttr4: -1,
+        }
+      }
+    },
+    methods: {
+      display(n, showNormal = false) {
+        if (n == 1 && !showNormal) return ""
+        if (n >= 1 || n == 0) return n
+        if (n === 0.5) return "½"
+        if (n === 0.25) return "¼"
+        if (n === 0.125) return "⅛"
+        return -1
+      },
+      getSkillRank() {
+        var totalAttack = nj.ones(18)
+        for (let attr of ["attr1", "attr2", "attr3"]) {
+          if (this.form1[attr] != -1) {
+            var col = this.form1[attr]
+            totalAttack = nj.multiply(totalAttack, this.matrix.slice(null, [col, col + 1]).reshape(18))
+          }
+        }
+        var skillRank = []
+        for (let i = 0; i < 18; i++) {
+          skillRank.push([totalAttack.get(i), types[i]])
+        }
+        skillRank.sort((a, b) => b[0] - a[0])
+        var rows = [[], []]
+        for (let i = 0; i < 18; i++) {
+          rows[0].push(skillRank[i][0])
+          rows[1].push(skillRank[i][1])
+        }
+        return rows
+      },
+      recommendSkill() {
+        var totalAttack = nj.ones(18)
+        for (let attr of ["attr1", "attr2", "attr3"]) {
+          if (this.form1[attr] != -1) {
+            var col = this.form1[attr]
+            totalAttack = nj.multiply(totalAttack, this.matrix.slice(null, [col, col + 1]).reshape(18))
+          }
+        }
+        var skillRank = []
+        for (let i = 0; i < 18; i++) {
+          skillRank.push([totalAttack.get(i), types[i]])
+        }
+        skillRank.sort((a, b) => b[0] - a[0])
+        var results = []
+        for (let i = 0; i < 18; i++) {
+          if (skillRank[i][0] > 1) {
+            results.push(skillRank[i][1])
+          }
+        }
+        if (results.length === 0) {
+          return [skillRank[0][1]]
+        }
+        return results
+      },
+      getAttrRank() {
+        var maxHurt = nj.zeros(18).tolist()
+        for (let attr of ["skillAttr1", "skillAttr2", "skillAttr3"]) {
+          if (this.form2[attr] != -1) {
+            var row = this.form2[attr]
+            var hurt = this.matrix.slice([row, row + 1], null).reshape(18).tolist()
+            maxHurt = maxHurt.map((v, i) => hurt[i] > v ? hurt[i] : v)
+          }
+        }
+        var attrRank = []
+        for (let i = 0; i < 18; i++) {
+          attrRank.push([maxHurt[i], types[i]])
+        }
+        attrRank.sort((a, b) => a[0] - b[0])
+        var rows = [[], []]
+        for (let i = 0; i < 18; i++) {
+          rows[0].push(attrRank[i][0])
+          rows[1].push(attrRank[i][1])
+        }
+        return rows
+      },
+      recommendAttr() {
+        if (this.form2.skillAttr1 === -1 && this.form2.skillAttr2 === -1 && this.form2.skillAttr3 === -1) {
+          return []
+        }
+        var maxHurt = nj.zeros(18).tolist()
+        for (let attr of ["skillAttr1", "skillAttr2", "skillAttr3"]) {
+          if (this.form2[attr] != -1) {
+            var row = this.form2[attr]
+            var hurt = this.matrix.slice([row, row + 1], null).reshape(18).tolist()
+            maxHurt = maxHurt.map((v, i) => hurt[i] > v ? hurt[i] : v)
+          }
+        }
+        var attrRank = []
+        for (let i = 0; i < 18; i++) {
+          attrRank.push([maxHurt[i], types[i]])
+        }
+        attrRank.sort((a, b) => a[0] - b[0])
+        var results = []
+        for (let i = 0; i < 18; i++) {
+          if (attrRank[i][0] < 1) {
+            results.push(attrRank[i][1])
+          }
+        }
+        if (results.length === 0) {
+          return [attrRank[0][1]]
+        }
+        return results
+      },
+      handleAttrChange(key) {
+        let mapping = {attr1: "skillAttr1", attr2: "skillAttr2", attr3: "skillAttr3"}
+        let skillKey = mapping[key]
+        if (!skillKey) return
+        if (this.form2[skillKey] === -1) {
+          this.form2[skillKey] = this.form1[key]
+        }
+      },
+      handleSkillChange(key) {
+        
+      }
+    }
+  })
+</script>
+</html>
