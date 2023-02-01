@@ -216,7 +216,7 @@
         if (n === 0.125) return "⅛"
         return -1
       },
-      getSkillRank() {
+      getSkills() {
         var totalAttack = nj.ones(18)
         for (let attr of ["attr1", "attr2", "attr3"]) {
           if (this.form1[attr] != -1) {
@@ -229,6 +229,10 @@
           skillRank.push([totalAttack.get(i), types[i]])
         }
         skillRank.sort((a, b) => b[0] - a[0])
+        return skillRank
+      },
+      getSkillRank() {
+        var skillRank = this.getSkills()
         var rows = [[], []]
         for (let i = 0; i < 18; i++) {
           rows[0].push(skillRank[i][0])
@@ -237,18 +241,7 @@
         return rows
       },
       recommendSkill() {
-        var totalAttack = nj.ones(18)
-        for (let attr of ["attr1", "attr2", "attr3"]) {
-          if (this.form1[attr] != -1) {
-            var col = this.form1[attr]
-            totalAttack = nj.multiply(totalAttack, this.matrix.slice(null, [col, col + 1]).reshape(18))
-          }
-        }
-        var skillRank = []
-        for (let i = 0; i < 18; i++) {
-          skillRank.push([totalAttack.get(i), types[i]])
-        }
-        skillRank.sort((a, b) => b[0] - a[0])
+        var skillRank = this.getSkills()
         var results = []
         for (let i = 0; i < 18; i++) {
           if (skillRank[i][0] > 1) {
@@ -260,9 +253,9 @@
         }
         return results
       },
-      getAttrRank() {
+      getAttrs() {
         var maxHurt = nj.zeros(18).tolist()
-        for (let attr of ["skillAttr1", "skillAttr2", "skillAttr3"]) {
+        for (let attr of ["skillAttr1", "skillAttr2", "skillAttr3", "skillAttr4"]) {
           if (this.form2[attr] != -1) {
             var row = this.form2[attr]
             var hurt = this.matrix.slice([row, row + 1], null).reshape(18).tolist()
@@ -274,6 +267,10 @@
           attrRank.push([maxHurt[i], types[i]])
         }
         attrRank.sort((a, b) => a[0] - b[0])
+        return attrRank
+      },
+      getAttrRank() {
+        var attrRank = this.getAttrs()
         var rows = [[], []]
         for (let i = 0; i < 18; i++) {
           rows[0].push(attrRank[i][0])
@@ -285,19 +282,7 @@
         if (this.form2.skillAttr1 === -1 && this.form2.skillAttr2 === -1 && this.form2.skillAttr3 === -1) {
           return []
         }
-        var maxHurt = nj.zeros(18).tolist()
-        for (let attr of ["skillAttr1", "skillAttr2", "skillAttr3"]) {
-          if (this.form2[attr] != -1) {
-            var row = this.form2[attr]
-            var hurt = this.matrix.slice([row, row + 1], null).reshape(18).tolist()
-            maxHurt = maxHurt.map((v, i) => hurt[i] > v ? hurt[i] : v)
-          }
-        }
-        var attrRank = []
-        for (let i = 0; i < 18; i++) {
-          attrRank.push([maxHurt[i], types[i]])
-        }
-        attrRank.sort((a, b) => a[0] - b[0])
+        var attrRank = this.getAttrs()
         var results = []
         for (let i = 0; i < 18; i++) {
           if (attrRank[i][0] < 1) {
