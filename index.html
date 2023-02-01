@@ -91,7 +91,7 @@
           <el-form-item v-for="val, key in form1" :label="formMap1[key]" style="width: 20rem;">
             <el-select v-model="form1[key]" @change="handleAttrChange(key)">
               <el-option label="-" :key="-1" :value="-1"></el-option>
-              <el-option v-for="type, typeIdx in types" :class="`type-${type}`" :label="typesMap[type]" :key="typeIdx" :value="typeIdx"></el-option>
+              <el-option :disabled="Object.values(form1).includes(typeIdx)" v-for="type, typeIdx in types" :class="`type-${type}`" :label="typesMap[type]" :key="typeIdx" :value="typeIdx"></el-option>
             </el-select>
           </el-form-item>
         </el-form>
